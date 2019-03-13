@@ -1,5 +1,6 @@
 #sq = (5,5,5,5)
 import tkgame.scene as scene
-def run():
+def run(canvas):
     scene.init(canvas)
-    sq = scene.Square(vector=scene.Vector(2, 2))
+    sq1 = scene.Square(vector=scene.Vector(2, 2))
+    sq2 = scene.Square(vector=scene.Vector(4, 4), scale=scene.Vector(2, 2))

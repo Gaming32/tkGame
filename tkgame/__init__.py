@@ -18,6 +18,5 @@ def run(scene, name='TkGame', icon=None, size=None):
     #             int(canvas['height']) - obj[1] + obj[3],
     #             fill='black'
     #         )
-    scene.canvas = canvas
-    scene.run()
+    scene.run(canvas)
     win.mainloop()
