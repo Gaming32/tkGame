@@ -2,6 +2,9 @@ class Vector:
     def __init__(self, x=0.0, y=0.0):
         self.x = x
         self.y = y
+    def offset(self, x, y):
+        self.x += x
+        self.y += y
 import math
 class Rotation:
     def __init__(self):
