@@ -41,22 +41,30 @@ class Placement(Descriptor):
 class Sprite(Descriptor):
     def __init__(self, parent, color='black'):
         Descriptor.__init__(self, parent)
-        self.obj = canvobj.create_rectangle(
+        self.color = color
+    def preupdate(self):
+        #print('deleting', end=' ')
+        try:
+            game.canvas.delete(self.obj)
+            # for attr in ['width', 'height']: #game.canvas.keys()
+            #     print(attr, '=>', game.canvas[attr])
+        except AttributeError: pass
+        self.obj = game.canvas.create_rectangle(
             self.parent.placement.vector.x * 50,
-            int(canvobj['height']) - self.parent.placement.vector.y * 50,
+            int(game.canvas['height']) - self.parent.placement.vector.y * 50,
             (self.parent.placement.vector.x * 50) + self.parent.placement.scale.x * 50,
-            (int(canvobj['height']) - self.parent.placement.vector.y * 50) + self.parent.placement.scale.y * 50,
-            fill=color
+            (int(game.canvas['height']) - self.parent.placement.vector.y * 50) + self.parent.placement.scale.y * 50,
+            fill=self.color
         )
 
 class SceneObj:
-    objs = {}
+    objs = []
     def __init__(self, name='SceneObj', vector=defaultvector, rotation=defaultrotation, scale=defaultscale):
         self.placement = Placement(vector, rotation, scale)
         self.placement.parent = self
         self.name = name
-        self.objs = {}
-        SceneObj.objs[name] = self
+        self.objs = []
+        SceneObj.objs.append(self)
     def getdescriptor(self, descriptor=Placement):
         name = descriptor.__name__.lower()
         return eval('self.' + name)
@@ -72,6 +80,10 @@ class SceneObj:
             raise TypeError('descriptor %s must be a descriptor' % name)
         else:
             raise ValueError('descriptor %s already on object %s' % (name, self.name))
+    def getalldescriptors(self):
+        for obj in dir(self):
+            if issubclass(type(eval('self.%s' % obj)), Descriptor):
+                yield self.__dict__[obj]
     def getchild(self, child):
         return self.objs[child]
     def __getitem__(self, child):
@@ -83,7 +95,28 @@ class Square(SceneObj):
 
 def getobj(item):
     return SceneObj.objs[item]
+def getallobjs(startlist=SceneObj.objs):
+    for obj in startlist:
+        yield obj
+        for obj in getallobjs(obj.objs):
+            yield obj
 
-def init(canvas):
-    global canvobj
-    canvobj = canvas
+def init(inst):
+    global game
+    game = inst
+
+def _update(attr):
+    #print('updating', attr)
+    for obj in getallobjs():
+        for desc in obj.getalldescriptors():
+            try: eval('desc.%s()' % attr)
+            except AttributeError: pass
+def _run():
+    _update('preupdate')
+    game.parent.update()
+    _update('update')
+    game.parent.after(wait, _run)
+def start(fps=30):
+    global wait
+    wait = 1000 // fps
+    _run()
