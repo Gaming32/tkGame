@@ -57,6 +57,10 @@ class Sprite(Descriptor):
             fill=self.color
         )
 
+class Behavior(Descriptor):
+    def __init__(self, parent):
+        Descriptor.__init__(self, parent)
+
 class SceneObj:
     objs = []
     def __init__(self, name='SceneObj', vector=defaultvector, rotation=defaultrotation, scale=defaultscale):
@@ -111,7 +115,14 @@ def _update(attr):
         for desc in obj.getalldescriptors():
             try: eval('desc.%s()' % attr)
             except AttributeError: pass
+import time
+lastframelen = 0
+_currframelen = None
 def _run():
+    global _currframelen, lastframelen
+    if _currframelen:
+        lastframelen = (time.clock() - _currframelen) // 1000
+    _currframelen = time.clock()
     _update('preupdate')
     game.parent.update()
     _update('update')

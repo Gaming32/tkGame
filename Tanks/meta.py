@@ -1,2 +1,2 @@
 import tkgame
-tkgame.run(__import__('scene'))
+tkgame.run(__import__('scene'), fullscreen=True)
