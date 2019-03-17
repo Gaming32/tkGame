@@ -1,2 +1,7 @@
-import tkgame
-tkgame.run(__import__('scene'), fullscreen=True)
+import scene as SCENE
+NAME = 'Tanks'
+FULLSCREEN = True
+
+if __name__ == '__main__':
+    import tkgame
+    tkgame.run(SCENE, name=NAME, fullscreen=FULLSCREEN)
