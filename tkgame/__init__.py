@@ -74,12 +74,12 @@ class GameInstance:
         #             int(canvas['height']) - obj[1] + obj[3],
         #             fill='black'
         #         )
-        self.parent.after(0, lambda self=self: scene.run(self))
+        self.parent.after(0, lambda self=self: scene(self))
         if doloop: self.parent.mainloop()
 
-def run(*pargs, **kwargs):
+def run(*args, **kwargs):
     """
     Same thing as GameInstance
     See GameInstance doc for help
     """
-    return GameInstance(*pargs, **kwargs)
+    return GameInstance(*args, **kwargs)

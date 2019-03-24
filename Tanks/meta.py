@@ -1,4 +1,4 @@
-import scene as SCENE
+from scene import go as SCENE
 NAME = 'Tanks'
 FULLSCREEN = True
 

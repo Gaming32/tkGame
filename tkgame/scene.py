@@ -44,16 +44,17 @@ class Sprite(Descriptor):
         self.color = color
     def preupdate(self):
         #print('deleting', end=' ')
+        canv = self.parent.scene.game.canvas
         try:
-            game.canvas.delete(self.obj)
-            # for attr in ['width', 'height']: #game.canvas.keys()
-            #     print(attr, '=>', game.canvas[attr])
+            canv.delete(self.obj)
+            # for attr in ['width', 'height']: #canv.keys()
+            #     print(attr, '=>', canv[attr])
         except AttributeError: pass
-        self.obj = game.canvas.create_rectangle(
+        self.obj = canv.create_rectangle(
             self.parent.placement.vector.x * 50,
-            int(game.canvas['height']) - self.parent.placement.vector.y * 50,
+            int(canv['height']) - self.parent.placement.vector.y * 50,
             (self.parent.placement.vector.x * 50) + self.parent.placement.scale.x * 50,
-            (int(game.canvas['height']) - self.parent.placement.vector.y * 50) + self.parent.placement.scale.y * 50,
+            (int(canv['height']) - self.parent.placement.vector.y * 50) + self.parent.placement.scale.y * 50,
             fill=self.color
         )
 
@@ -63,7 +64,8 @@ class Behavior(Descriptor):
 
 class SceneObj:
     objs = []
-    def __init__(self, name='SceneObj', vector=defaultvector, rotation=defaultrotation, scale=defaultscale):
+    def __init__(self, scene, name='SceneObj', vector=defaultvector, rotation=defaultrotation, scale=defaultscale):
+        self.scene = scene
         self.placement = Placement(vector, rotation, scale)
         self.placement.parent = self
         self.name = name
@@ -93,41 +95,38 @@ class SceneObj:
     def __getitem__(self, child):
         self.getchild(child)
 class Square(SceneObj):
-    def __init__(self, name='Square', vector=defaultvector, rotation=defaultrotation, scale=defaultscale):
-        SceneObj.__init__(self, name, vector, rotation, scale)
+    def __init__(self, scene, name='Square', vector=defaultvector, rotation=defaultrotation, scale=defaultscale):
+        SceneObj.__init__(self, scene, name, vector, rotation, scale)
         self.adddescriptor(Sprite)
 
-def getobj(item):
-    return SceneObj.objs[item]
-def getallobjs(startlist=SceneObj.objs):
-    for obj in startlist:
-        yield obj
-        for obj in getallobjs(obj.objs):
-            yield obj
-
-def init(inst):
-    global game
-    game = inst
-
-def _update(attr):
-    #print('updating', attr)
-    for obj in getallobjs():
-        for desc in obj.getalldescriptors():
-            try: eval('desc.%s()' % attr)
-            except AttributeError: pass
 import time
-lastframelen = 0
-_currframelen = None
-def _run():
-    global _currframelen, lastframelen
-    if _currframelen:
-        lastframelen = (time.clock() - _currframelen) // 1000
-    _currframelen = time.clock()
-    _update('preupdate')
-    game.parent.update()
-    _update('update')
-    game.parent.after(wait, _run)
-def start(fps=30):
-    global wait
-    wait = 1000 // fps
-    _run()
+class Scene:
+    def getobj(self, item):
+        return SceneObj.objs[item]
+    def getallobjs(self, startlist=SceneObj.objs):
+        for obj in startlist:
+            yield obj
+            for obj in self.getallobjs(obj.objs):
+                yield obj
+    def _update(self, attr):
+        #print('updating', attr)
+        for obj in self.getallobjs():
+            for desc in obj.getalldescriptors():
+                try: eval('desc.%s()' % attr)
+                except AttributeError: pass
+    lastframelen = 0
+    _currframelen = None
+    def _run(self):
+        if Scene._currframelen:
+            Scene.lastframelen = (time.clock() - Scene._currframelen) // 1000
+        Scene._currframelen = time.clock()
+        self._update('preupdate')
+        self.game.parent.update()
+        self._update('update')
+        self.game.parent.after(self.wait, self._run)
+    def start(self, game, fps=30):
+        self.game = game
+        self.wait = 1000 // fps
+        self._run()
+    def __call__(self, *args, **kwargs):
+        self.start(*args, **kwargs)
