@@ -1,6 +1,6 @@
-from scene import go as SCENE
+from scene import myscene as SCENE
 NAME = 'Tanks'
-FULLSCREEN = True
+FULLSCREEN = False
 
 if __name__ == '__main__':
     import tkgame

@@ -40,7 +40,7 @@ class GameInstance:
         self.canvas.config(width=event.width, height=event.height)
     def __init__(self,
             scene, parent=None, usewm=True, fullscreen=False, doloop=True,
-            name='TkGame', icon=None, size=(500, 500)):
+            name='TkGame', icon=None, size=(1280, 720)):
         self.parent = parent
         self.fullscreen = fullscreen
         self.name = name
@@ -48,7 +48,7 @@ class GameInstance:
         if not self.parent: self.parent = Tk()
         if usewm:
             self.parent.title(name)
-            self.parent.geometry('%dx%d+1000+300' % size)
+            self.parent.geometry('%dx%d' % size)
             if self.fullscreen:
                 #parent.attributes('-alpha', 0.0)
                 self.parent.overrideredirect(True)
@@ -56,11 +56,11 @@ class GameInstance:
                 if sys.platform[:3] == 'win':
                     self.parent.state('zoomed')
                 else:
-                    self.parent.geometry('%sx%s+0+0' % (
+                    self.parent.geometry('%sx%s' % (
                         self.parent.winfo_screenwidth(),
                         self.parent.winfo_screenheight()))
             if self.icon: self.parent.iconbitmap(file=icon)
-        self.canvas = Canvas(parent)
+        self.canvas = Canvas(parent, bg='white', borderwidth=0)
         self.canvas.bind('<Configure>', self._canvconf)
         self.canvas.pack(expand=YES, fill=BOTH)
         # for obj in dir(scene):

@@ -39,18 +39,18 @@ class Placement(Descriptor):
         self.rotation = rotation
         self.scale = scale
 class Sprite(Descriptor):
-    def __init__(self, parent, color='black'):
+    def __init__(self, parent, color='black', shape='rectangle'):
         Descriptor.__init__(self, parent)
         self.color = color
+        self.cmd   = 'canv.create_' + shape
     def preupdate(self):
         #print('deleting', end=' ')
         canv = self.parent.scene.game.canvas
-        try:
+        if hasattr(self, 'obj'):
             canv.delete(self.obj)
             # for attr in ['width', 'height']: #canv.keys()
             #     print(attr, '=>', canv[attr])
-        except AttributeError: pass
-        self.obj = canv.create_rectangle(
+        self.obj = eval(self.cmd)(
             self.parent.placement.vector.x * 50,
             int(canv['height']) - self.parent.placement.vector.y * 50,
             (self.parent.placement.vector.x * 50) + self.parent.placement.scale.x * 50,
@@ -74,10 +74,10 @@ class SceneObj:
     def getdescriptor(self, descriptor=Placement):
         name = descriptor.__name__.lower()
         return eval('self.' + name)
-    def adddescriptor(self, descriptor):
+    def adddescriptor(self, descriptor, **kw):
         name = descriptor.__name__.lower()
         obj = 'self.' + name
-        cmd = 'descriptor(parent=self)'
+        cmd = 'descriptor(parent=self, **kw)'
         istype = issubclass(descriptor, Descriptor)
         ishere = hasattr(self, name)
         if istype and not ishere:
@@ -95,12 +95,19 @@ class SceneObj:
     def __getitem__(self, child):
         self.getchild(child)
 class Square(SceneObj):
-    def __init__(self, scene, name='Square', vector=defaultvector, rotation=defaultrotation, scale=defaultscale):
+    def __init__(self, scene, name='Square',
+        vector=defaultvector, rotation=defaultrotation, scale=defaultscale,
+        color='black', shape='rectangle'):
         SceneObj.__init__(self, scene, name, vector, rotation, scale)
-        self.adddescriptor(Sprite)
+        self.adddescriptor(Sprite, color=color, shape=shape)
 
 import time
 class Scene:
+    def __init__(self, fps=1000, displayfps=False):
+        import sys
+        self.displayfps = displayfps or ('--display-fps' in sys.argv)
+        if fps: self.wait = 1000 // fps
+        else:   self.wait = 0
     def getobj(self, item):
         return SceneObj.objs[item]
     def getallobjs(self, startlist=SceneObj.objs):
@@ -114,19 +121,24 @@ class Scene:
             for desc in obj.getalldescriptors():
                 try: eval('desc.%s()' % attr)
                 except AttributeError: pass
+                    # import traceback
+                    # traceback.print_exc()
     lastframelen = 0
     _currframelen = None
     def _run(self):
-        if Scene._currframelen:
-            Scene.lastframelen = (time.clock() - Scene._currframelen) // 1000
-        Scene._currframelen = time.clock()
+        if self._currframelen:
+            self.lastframelen = time.clock() - self._currframelen
+            if self.displayfps:
+                self.game.canvas.itemconfig(self.fpslbl, text=('fps => %.2f' % (1 / self.lastframelen)))
+        self._currframelen = time.clock()
         self._update('preupdate')
         self.game.parent.update()
         self._update('update')
         self.game.parent.after(self.wait, self._run)
-    def start(self, game, fps=30):
+    def start(self, game):
         self.game = game
-        self.wait = 1000 // fps
+        if self.displayfps:
+            self.fpslbl = self.game.canvas.create_text(0, 0, anchor='nw')
         self._run()
     def __call__(self, *args, **kwargs):
         self.start(*args, **kwargs)

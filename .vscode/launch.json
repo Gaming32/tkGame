@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["Tanks\\meta.py", "-v", "--reset-battery"]
+            "args": ["Tanks\\meta.py", "-v"]
         },
         {
             "name": "Python: Current File (Integrated Terminal)",

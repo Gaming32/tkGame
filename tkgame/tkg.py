@@ -20,16 +20,17 @@ else:
 
 def maketkg(meta, reset_battery=False):
     trace('Initializing...')
+    savepath = sys.path[0]
+    sys.path[0] = os.path.dirname(meta)
     modfind = ModuleFinder()
     modfind.run_script(meta)
     mainmodfile = modfind.modules['__main__'].__file__
-    sys.path.insert(0, os.path.dirname(mainmodfile))
     mainmod = __import__(os.path.splitext(os.path.basename(mainmodfile))[0])
     verbose('\t__main__ globals =>', [globalname for globalname in dir(mainmod) if
         globalname[:2] != '__' and globalname[-2:] != '__'])
     try: gamename = mainmod.NAME
     except AttributeError: gamename = 'tkGame'
-    tkgpath = os.path.join(os.path.split(meta)[0], 'dist')
+    tkgpath = os.path.join(os.path.dirname(mainmodfile), 'dist')
     if not os.path.isdir(tkgpath): os.mkdir(tkgpath)
     tkgpath = os.path.join(tkgpath, gamename + '.tkg')
     #if os.path.isfile(tkgpath): os.remove(tkgpath)
@@ -72,6 +73,7 @@ def maketkg(meta, reset_battery=False):
             trace('\t \t', mod)
     trace('Hashing...')
     hashed = hasher.hexdigest()
+    verbose('\t', 'hashed =>', hashed)
     verbose('\t', 'hashfile =>', hashfilename)
     # hashfile.seek(0)
     absmmfi = os.path.abspath(mainmodfile)
@@ -97,6 +99,7 @@ def maketkg(meta, reset_battery=False):
     #     hashfile.seek(where + len(absmmfi) + 1)
     #     tkg.writestr('hash', hashfile.read(16))
     trace('Finishing...')
+    sys.path[0] = savepath
     hashfile.close()
     tkg.close()
     trace('Done')
