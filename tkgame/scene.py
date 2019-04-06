@@ -1,3 +1,4 @@
+from enum import Enum
 class Vector:
     def __init__(self, x=0.0, y=0.0):
         self.x = x
@@ -38,25 +39,54 @@ class Placement(Descriptor):
         self.vector = vector
         self.rotation = rotation
         self.scale = scale
+class Shapes(Enum):
+    Arc  = 'arc'
+    Line = 'line'
+    Oval = 'oval'
+    Poly = 'polygon'
+    Rect = 'rectangle'
 class Sprite(Descriptor):
-    def __init__(self, parent, color='black', shape='rectangle'):
+    def __init__(self, parent, color='black', shape=Shapes.Rect):
         Descriptor.__init__(self, parent)
         self.color = color
-        self.cmd   = 'canv.create_' + shape
+        self.cmd   = 'canv.create_' + shape.value
     def preupdate(self):
         #print('deleting', end=' ')
-        canv = self.parent.scene.game.canvas
+        canv  = self.parent.scene.game.canvas
+        scale = self.parent.scene.scale
+        place = self.parent.placement
         if hasattr(self, 'obj'):
             canv.delete(self.obj)
             # for attr in ['width', 'height']: #canv.keys()
             #     print(attr, '=>', canv[attr])
         self.obj = eval(self.cmd)(
-            self.parent.placement.vector.x * 50,
-            int(canv['height']) - self.parent.placement.vector.y * 50,
-            (self.parent.placement.vector.x * 50) + self.parent.placement.scale.x * 50,
-            (int(canv['height']) - self.parent.placement.vector.y * 50) + self.parent.placement.scale.y * 50,
+            place.vector.x * scale,
+            int(canv['height']) - place.vector.y * scale,
+            (place.vector.x * scale) + place.scale.x * scale,
+            (int(canv['height']) - place.vector.y * scale) + place.scale.y * scale,
             fill=self.color
         )
+    def within(self, other):
+        canv  = self.parent.scene.game.canvas
+        scale = self.parent.scene.scale
+        place = self.parent.placement
+        # print( '%s => %05.2f & %05.2f & %05.2f & %05.2f' % (d,
+        #     place.vector.x * scale,
+        #     int(canv['height']) - place.vector.y * scale,
+        #     (place.vector.x * scale) + place.scale.x * scale,
+        #     (int(canv['height']) - place.vector.y * scale) + place.scale.y * scale
+        # ))
+        sprites = canv.find_overlapping(
+            place.vector.x * scale,
+            int(canv['height']) - place.vector.y * scale,
+            (place.vector.x * scale) + place.scale.x * scale,
+            (int(canv['height']) - place.vector.y * scale) + place.scale.y * scale
+        )
+        obj = other.getdescriptor(Sprite).obj
+        #print(desc, sprites, end='\r')
+        return (obj in sprites)
+    def __contains__(self, other):
+        return Sprite.within(self, other)
 
 class Behavior(Descriptor):
     def __init__(self, parent):
@@ -97,13 +127,14 @@ class SceneObj:
 class Square(SceneObj):
     def __init__(self, scene, name='Square',
         vector=defaultvector, rotation=defaultrotation, scale=defaultscale,
-        color='black', shape='rectangle'):
+        color='black', shape=Shapes.Rect):
         SceneObj.__init__(self, scene, name, vector, rotation, scale)
         self.adddescriptor(Sprite, color=color, shape=shape)
 
 import time
 class Scene:
-    def __init__(self, fps=1000, displayfps=False):
+    def __init__(self, scale=50, fps=1000, displayfps=False):
+        self.scale = scale
         import sys
         self.displayfps = displayfps or ('--display-fps' in sys.argv)
         if fps: self.wait = 1000 // fps
@@ -115,6 +146,13 @@ class Scene:
             yield obj
             for obj in self.getallobjs(obj.objs):
                 yield obj
+    def quit(self):
+        self.game.canvas.destroy()
+    def _switchscene(self, scene):
+        self.game.parent.after_cancel(self._next)
+        self.game._startscene(scene)
+    def  switchscene(self, scene):
+        self.game.parent.after(0, lambda scene=scene: self._switchscene(scene))
     def _update(self, attr):
         #print('updating', attr)
         for obj in self.getallobjs():
@@ -134,7 +172,7 @@ class Scene:
         self._update('preupdate')
         self.game.parent.update()
         self._update('update')
-        self.game.parent.after(self.wait, self._run)
+        self._next = self.game.parent.after(self.wait, self._run)
     def start(self, game):
         self.game = game
         if self.displayfps:
