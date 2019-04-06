@@ -12,10 +12,10 @@ class Mover(scene.Descriptor):
              left  = 'left arrow',
              right = 'right arrow')
     speed:
-        The speed at which the player will move in
-        units per second
+        The speed at which the player will move in units per second
         If not specified, it will default to 5"""
-    def __init__(self, keys=None, speed=5):
+    def __init__(self, parent, keys=None, speed=5):
+        scene.Descriptor.__init__(self, parent)
         if not keys:
             keys = dict(
                 up    = 'up arrow',

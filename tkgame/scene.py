@@ -1,3 +1,4 @@
+from copy import copy
 from enum import Enum
 class Vector:
     def __init__(self, x=0.0, y=0.0):
@@ -6,6 +7,10 @@ class Vector:
     def offset(self, x, y):
         self.x += x
         self.y += y
+    def __str__(self):
+        return '(%r,%r)' % (self.x, self.y)
+    def __repr__(self):
+        return '%s%s' % (self.__class__.__qualname__, self)
 import math
 class Rotation:
     def __init__(self):
@@ -26,6 +31,9 @@ class Rotation:
     def getrad(self):
         return self.__degrees * math.pi / 180
 
+    def __str__(self):
+        return '%r°' % self.__degrees
+
 class Descriptor:
     def __init__(self, parent):
         if type(self) == Descriptor:
@@ -35,7 +43,13 @@ defaultvector   = Vector()
 defaultrotation = Rotation()
 defaultscale    = Vector(1.0, 1.0)
 class Placement(Descriptor):
-    def __init__(self, vector=defaultvector, rotation=defaultrotation, scale=defaultscale):
+    def __init__(self, vector=None, rotation=None, scale=None):
+        if not vector:
+            vector = copy(defaultvector)
+        if not rotation:
+            rotation = copy(defaultrotation)
+        if not scale:
+            scale = copy(defaultscale)
         self.vector = vector
         self.rotation = rotation
         self.scale = scale
@@ -45,48 +59,58 @@ class Shapes(Enum):
     Oval = 'oval'
     Poly = 'polygon'
     Rect = 'rectangle'
-class Sprite(Descriptor):
-    def __init__(self, parent, color='black', shape=Shapes.Rect):
+class _Graphic(Descriptor):
+    _poslogic = ("(place.vector.x - cam.vector.x) * cam.scale.x,"
+            "int(canv['height']) - (place.vector.y + cam.vector.y) * cam.scale.y,"
+            "(place.vector.x * (cam.scale.x - cam.vector.x)) + place.scale.x * cam.scale.x,"
+            "(int(canv['height']) - (place.vector.y + cam.vector.y) * cam.scale.y) + place.scale.y * cam.scale.y")
+    _poscut = 114
+    def __init__(self, parent, color='black', style=Shapes.Rect.value):
         Descriptor.__init__(self, parent)
+        self.kw = {}
         self.color = color
-        self.cmd   = 'canv.create_' + shape.value
+        self.cmd   = 'canv.create_' + style
     def preupdate(self):
         #print('deleting', end=' ')
         canv  = self.parent.scene.game.canvas
-        scale = self.parent.scene.scale
         place = self.parent.placement
+        cam   = self.parent.scene.camera
         if hasattr(self, 'obj'):
             canv.delete(self.obj)
             # for attr in ['width', 'height']: #canv.keys()
             #     print(attr, '=>', canv[attr])
-        self.obj = eval(self.cmd)(
-            place.vector.x * scale,
-            int(canv['height']) - place.vector.y * scale,
-            (place.vector.x * scale) + place.scale.x * scale,
-            (int(canv['height']) - place.vector.y * scale) + place.scale.y * scale,
-            fill=self.color
-        )
+        tup = (eval(self._poslogic))
+        # if self.doalso: print('%04.4f %04.4f %04.4f %04.4f' % tup, end='\r')
+        self.obj = eval(self.cmd)(*tup, fill=self.color, **self.kw)
     def within(self, other):
         canv  = self.parent.scene.game.canvas
-        scale = self.parent.scene.scale
         place = self.parent.placement
+        cam   = self.parent.scene.camera
         # print( '%s => %05.2f & %05.2f & %05.2f & %05.2f' % (d,
         #     place.vector.x * scale,
         #     int(canv['height']) - place.vector.y * scale,
         #     (place.vector.x * scale) + place.scale.x * scale,
         #     (int(canv['height']) - place.vector.y * scale) + place.scale.y * scale
         # ))
-        sprites = canv.find_overlapping(
-            place.vector.x * scale,
-            int(canv['height']) - place.vector.y * scale,
-            (place.vector.x * scale) + place.scale.x * scale,
-            (int(canv['height']) - place.vector.y * scale) + place.scale.y * scale
-        )
-        obj = other.getdescriptor(Sprite).obj
+        tup = (eval(self._poslogic))
+        sprites = canv.find_overlapping(*tup)
+        obj = other.getdescriptor(self.__class__).obj
         #print(desc, sprites, end='\r')
         return (obj in sprites)
     def __contains__(self, other):
-        return Sprite.within(self, other)
+        return self.__class__.within(self, other)
+class Sprite(_Graphic):
+    def __init__(self, parent, color='black', shape=Shapes.Rect):
+        _Graphic.__init__(self, parent, color, shape.value)
+class Text(_Graphic):
+    def __init__(self, parent, text='', color='black'):
+        _Graphic.__init__(self, parent, color, 'text')
+        self._poslogic = self._poslogic[:self._poscut]
+        self.kw['text'] = text
+    def __setattr__(self, attr, value):
+        if attr == 'text':
+            self.kw['text'] = value
+        else: object.__setattr__(self, attr, value)
 
 class Behavior(Descriptor):
     def __init__(self, parent):
@@ -94,7 +118,13 @@ class Behavior(Descriptor):
 
 class SceneObj:
     objs = []
-    def __init__(self, scene, name='SceneObj', vector=defaultvector, rotation=defaultrotation, scale=defaultscale):
+    def __init__(self, scene, name='SceneObj', vector=None, rotation=None, scale=None):
+        if not vector:
+            vector = copy(defaultvector)
+        if not rotation:
+            rotation = copy(defaultrotation)
+        if not scale:
+            scale = copy(defaultscale)
         self.scene = scene
         self.placement = Placement(vector, rotation, scale)
         self.placement.parent = self
@@ -139,6 +169,7 @@ class Scene:
         self.displayfps = displayfps or ('--display-fps' in sys.argv)
         if fps: self.wait = 1000 // fps
         else:   self.wait = 0
+        self.camera = Placement(scale=Vector(50, 50))
     def getobj(self, item):
         return SceneObj.objs[item]
     def getallobjs(self, startlist=SceneObj.objs):
@@ -180,3 +211,9 @@ class Scene:
         self._run()
     def __call__(self, *args, **kwargs):
         self.start(*args, **kwargs)
+    def __getattr__(self, attr):
+        if attr == 'gametime':
+            if self._currframelen:
+                return self._currframelen
+            else: raise ValueError('scene %r not initialized' % self)
+        else: raise AttributeError('instance of %s has no attribute %s' % (self.__class__.__qualname__, attr))
